@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>중복순열 발견하기 — 경우의 수</title>
+<style>
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@500;700;800&display=swap');
+
+  :root{
+    --bg:#F4F3EF;
+    --panel:#FFFFFF;
+    --ink:#1E212B;
+    --ink-soft:#5A6072;
+    --line:#E2E0D8;
+    /* 의미를 가진 두 색: 중복순열(자리마다 그대로 n) vs 순열(줄어듦) */
+    --rep:#13876F;      /* 중복순열 - hero, 안정적인 n */
+    --rep-bg:#E2F1ED;
+    --perm:#7A4BB0;     /* 순열 - 줄어듦 */
+    --perm-bg:#EFE7F6;
+    --glow:#E0A52C;     /* 발견 강조 */
+    --glow-bg:#FBF1D8;
+    --radius:14px;
+    font-size:clamp(16px,1.05vw + 12px,22px);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--ink);
+    font-family:'Pretendard',system-ui,'Malgun Gothic',sans-serif;
+    line-height:1.5;-webkit-font-smoothing:antialiased;
+    padding:clamp(1rem,3vw,2.5rem);
+  }
+  .wrap{max-width:1080px;margin:0 auto}
+
+  header{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:.6rem;margin-bottom:1.4rem}
+  .eyebrow{font-family:'JetBrains Mono',monospace;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--rep);font-weight:700}
+  h1{font-family:'Space Grotesk','Pretendard',sans-serif;font-size:clamp(1.6rem,3.4vw,2.6rem);font-weight:700;letter-spacing:-.02em;line-height:1.05}
+  h1 small{display:block;font-size:.42em;font-weight:500;color:var(--ink-soft);letter-spacing:0;margin-top:.4em}
+
+  /* 단계 스테퍼 */
+  .stepper{display:flex;gap:.4rem;margin-bottom:1.6rem;flex-wrap:wrap}
+  .step{flex:1 1 0;min-width:130px;background:var(--panel);border:2px solid var(--line);border-radius:var(--radius);
+        padding:.7rem .85rem;cursor:pointer;text-align:left;transition:.18s;font-family:inherit;color:var(--ink-soft)}
+  .step:hover{border-color:var(--rep)}
+  .step .num{font-family:'JetBrains Mono',monospace;font-weight:800;font-size:.78rem;color:var(--rep)}
+  .step .lab{font-weight:700;font-size:.92rem;color:var(--ink);margin-top:.1rem;line-height:1.2}
+  .step[aria-selected="true"]{background:var(--ink);border-color:var(--ink)}
+  .step[aria-selected="true"] .num{color:var(--glow)}
+  .step[aria-selected="true"] .lab{color:#fff}
+
+  .board{background:var(--panel);border:2px solid var(--line);border-radius:18px;padding:clamp(1.1rem,3vw,2rem);min-height:340px}
+  .prompt{font-size:clamp(1.05rem,2.2vw,1.45rem);font-weight:700;margin-bottom:.3rem;line-height:1.3}
+  .sub{color:var(--ink-soft);margin-bottom:1.3rem;font-size:.95rem}
+
+  /* 컨트롤 */
+  .ctrls{display:flex;gap:1.4rem;flex-wrap:wrap;align-items:center;margin-bottom:1.3rem}
+  .ctrl{display:flex;flex-direction:column;gap:.35rem}
+  .ctrl label{font-size:.78rem;font-weight:700;color:var(--ink-soft);letter-spacing:.02em}
+  .stepper-num{display:flex;align-items:center;gap:.5rem}
+  .stepper-num button{width:2.2rem;height:2.2rem;border:2px solid var(--line);background:var(--bg);border-radius:10px;
+        font-size:1.3rem;font-weight:700;cursor:pointer;color:var(--ink);font-family:'JetBrains Mono',monospace;line-height:1}
+  .stepper-num button:hover{border-color:var(--rep);color:var(--rep)}
+  .stepper-num .val{font-family:'JetBrains Mono',monospace;font-weight:800;font-size:1.5rem;min-width:2.2rem;text-align:center}
+
+  /* PIN 슬롯 keypad — signature */
+  .slots{display:flex;gap:.6rem;flex-wrap:wrap;align-items:flex-end;margin:.3rem 0}
+  .slot{width:clamp(64px,9vw,92px);border-radius:12px;overflow:hidden;border:3px solid;text-align:center;transition:.2s}
+  .slot .cap{font-size:.66rem;font-weight:700;padding:.3rem 0;letter-spacing:.02em;color:#fff}
+  .slot .big{font-family:'JetBrains Mono',monospace;font-weight:800;font-size:clamp(1.7rem,4vw,2.6rem);padding:.35rem 0;background:#fff}
+  .slot.rep{border-color:var(--rep)} .slot.rep .cap{background:var(--rep)} .slot.rep .big{color:var(--rep)}
+  .slot.perm{border-color:var(--perm)} .slot.perm .cap{background:var(--perm)} .slot.perm .big{color:var(--perm)}
+
+  .row-lab{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:.82rem;letter-spacing:.04em;margin-bottom:.45rem;display:flex;align-items:center;gap:.5rem}
+  .tag{font-size:.66rem;padding:.18rem .5rem;border-radius:999px;font-weight:800;letter-spacing:.03em}
+  .tag.rep{background:var(--rep-bg);color:var(--rep)} .tag.perm{background:var(--perm-bg);color:var(--perm)}
+
+  .expr{font-family:'JetBrains Mono',monospace;font-weight:800;font-size:clamp(1.3rem,3.2vw,2.1rem);margin-top:.7rem;letter-spacing:.01em}
+  .expr.rep{color:var(--rep)} .expr.perm{color:var(--perm)}
+  .expr .res{padding:.05em .4em;border-radius:8px;margin-left:.2em}
+  .expr.rep .res{background:var(--rep-bg)} .expr.perm .res{background:var(--perm-bg)}
+
+  .compare{display:grid;grid-template-columns:1fr;gap:1.1rem;margin-top:.4rem}
+  @media(min-width:760px){.compare{grid-template-columns:1fr 1fr}}
+  .card{border:2px solid var(--line);border-radius:14px;padding:1.1rem 1.2rem}
+  .card.rep{border-color:var(--rep);background:var(--rep-bg)}
+  .card.perm{border-color:var(--perm);background:var(--perm-bg)}
+
+  /* 나열 그리드 */
+  .grid{display:flex;flex-wrap:wrap;gap:.45rem;margin:.3rem 0}
+  .chip{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:clamp(1rem,2.2vw,1.35rem);
+        background:var(--bg);border:2px solid var(--line);border-radius:10px;padding:.35rem .6rem;transition:.2s}
+  .chip.dim{opacity:.28;text-decoration:line-through;text-decoration-color:var(--perm)}
+  .chip.dup{border-color:var(--perm);color:var(--perm);background:var(--perm-bg)}
+  .count{display:inline-flex;align-items:baseline;gap:.4rem;font-family:'JetBrains Mono',monospace;font-weight:800;
+         font-size:clamp(1.4rem,3.4vw,2.2rem);margin-top:.6rem}
+  .count .label{font-family:'Pretendard',sans-serif;font-size:.5em;font-weight:700;color:var(--ink-soft)}
+  .count.rep{color:var(--rep)} .count.perm{color:var(--perm)}
+
+  .overflow{background:var(--glow-bg);border:2px dashed var(--glow);border-radius:12px;padding:1rem 1.2rem;font-weight:700;color:#8a6512}
+
+  .discover{margin-top:1.4rem;background:var(--ink);color:#fff;border-radius:14px;padding:1.1rem 1.3rem;opacity:0;transform:translateY(8px);transition:.4s}
+  .discover.show{opacity:1;transform:none}
+  .discover b{color:var(--glow)}
+  .discover .formula{font-family:'JetBrains Mono',monospace;font-weight:800;font-size:1.4rem;margin-top:.4rem;display:block}
+
+  .reveal-btn{background:var(--rep);color:#fff;border:none;border-radius:12px;padding:.75rem 1.4rem;font-family:inherit;
+        font-weight:700;font-size:1rem;cursor:pointer;transition:.18s}
+  .reveal-btn:hover{filter:brightness(1.08)}
+  .reveal-btn.ghost{background:transparent;color:var(--perm);border:2px solid var(--perm)}
+  .btnrow{display:flex;gap:.7rem;flex-wrap:wrap;margin-top:.4rem}
+
+  /* 전이 */
+  .transfer-result{font-family:'JetBrains Mono',monospace;font-weight:800;font-size:clamp(1.8rem,5vw,3rem);color:var(--rep);margin:.5rem 0}
+  .presets{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem}
+  .preset{background:var(--bg);border:2px solid var(--line);border-radius:999px;padding:.5rem 1rem;cursor:pointer;font-family:inherit;font-weight:700;font-size:.85rem;color:var(--ink)}
+  .preset:hover{border-color:var(--rep);color:var(--rep)}
+  .say{background:var(--glow-bg);border-left:5px solid var(--glow);border-radius:0 12px 12px 0;padding:1rem 1.3rem;margin-bottom:1.3rem;font-weight:700;font-size:1.05rem}
+
+  .nav{display:flex;justify-content:space-between;margin-top:1.4rem;gap:.7rem}
+  .nav button{background:var(--ink);color:#fff;border:none;border-radius:12px;padding:.7rem 1.5rem;font-family:inherit;font-weight:700;font-size:1rem;cursor:pointer}
+  .nav button:disabled{opacity:.3;cursor:default}
+  .nav button.prev{background:transparent;color:var(--ink-soft);border:2px solid var(--line)}
+
+  .hide{display:none !important}
+  @media(prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">경우의 수 · 1차시</div>
+      <h1>중복순열 발견하기<small>비밀번호로 세어 보며 nʳ을 직접 찾는다</small></h1>
+    </div>
+  </header>
+
+  <div class="stepper" id="stepper">
+    <button class="step" data-s="0" aria-selected="true"><span class="num">01</span><span class="lab">일단 세기</span></button>
+    <button class="step" data-s="1"><span class="num">02</span><span class="lab">일부러 막히기</span></button>
+    <button class="step" data-s="2"><span class="num">03</span><span class="lab">기준 세워 고치기</span></button>
+    <button class="step" data-s="3"><span class="num">04</span><span class="lab">말하고 옮기기</span></button>
+  </div>
+
+  <div class="board">
+
+    <!-- STAGE 0 -->
+    <section data-stage="0">
+      <div class="prompt">숫자 <b>1, 2, 3</b>으로 <b>두 자리</b> 비밀번호를 만든다. 같은 숫자를 또 써도 된다.</div>
+      <div class="sub">학생에게 먼저: "다 적어볼까? 몇 개나 나올까?"</div>
+      <div class="btnrow">
+        <button class="reveal-btn" id="reveal0">전부 나열하기</button>
+      </div>
+      <div id="grid0" class="grid" style="margin-top:1rem"></div>
+      <div id="count0"></div>
+    </section>
+
+    <!-- STAGE 1 -->
+    <section data-stage="1" class="hide">
+      <div class="prompt">그런데 작년에 배운 <b>순열</b>(같은 숫자 못 씀)이면 몇 개였지?</div>
+      <div class="sub">같은 상황을 순열로 세어 비교한다. 왜 개수가 달라질까?</div>
+      <div class="compare">
+        <div class="card rep">
+          <div class="row-lab"><span class="tag rep">중복순열</span> 같은 숫자 OK</div>
+          <div id="grid1rep" class="grid"></div>
+          <div class="count rep"><span id="cnt1rep">9</span><span class="label">가지</span></div>
+        </div>
+        <div class="card perm">
+          <div class="row-lab"><span class="tag perm">순열</span> 같은 숫자 X</div>
+          <div id="grid1perm" class="grid"></div>
+          <div class="count perm"><span id="cnt1perm">6</span><span class="label">가지</span></div>
+        </div>
+      </div>
+      <div class="btnrow" style="margin-top:1.2rem">
+        <button class="reveal-btn ghost" id="bump1">자리를 3개로 늘리면?</button>
+      </div>
+      <div id="overflow1" class="hide" style="margin-top:1rem"></div>
+    </section>
+
+    <!-- STAGE 2 -->
+    <section data-stage="2" class="hide">
+      <div class="prompt">자리마다 <b>몇 가지</b>씩 고를 수 있나? 직접 바꿔 보자.</div>
+      <div class="sub">한 번 쓴 숫자를 또 써도 되는지가 갈림길이다.</div>
+      <div class="ctrls">
+        <div class="ctrl"><label>기호 개수 n</label>
+          <div class="stepper-num"><button data-d="n" data-v="-1">−</button><span class="val" id="nVal">3</span><button data-d="n" data-v="1">+</button></div>
+        </div>
+        <div class="ctrl"><label>자리 수 r</label>
+          <div class="stepper-num"><button data-d="r" data-v="-1">−</button><span class="val" id="rVal">3</span><button data-d="r" data-v="1">+</button></div>
+        </div>
+      </div>
+
+      <div class="card rep" style="margin-bottom:1.1rem">
+        <div class="row-lab"><span class="tag rep">중복순열</span> 다시 뽑아도 되니까 자리마다 항상 n</div>
+        <div class="slots" id="slotsRep"></div>
+        <div class="expr rep" id="exprRep"></div>
+      </div>
+      <div class="card perm">
+        <div class="row-lab"><span class="tag perm">순열</span> 한 번 쓰면 빠지니까 한 칸씩 줄어듦</div>
+        <div class="slots" id="slotsPerm"></div>
+        <div class="expr perm" id="exprPerm"></div>
+      </div>
+
+      <div class="discover" id="discover2">
+        <b>발견.</b> 중복순열은 다시 뽑을 수 있어서 <b>자리마다 늘 n가지</b> → 줄지 않고 곱만 한다.
+        <span class="formula">n × n × … × n (r번) = nʳ</span>
+      </div>
+    </section>
+
+    <!-- STAGE 3 -->
+    <section data-stage="3" class="hide">
+      <div class="say">"왜 순열은 줄어드는데 중복순열은 안 줄어들까?" — 한 문장으로 말해 보자.</div>
+      <div class="prompt">처음 보는 상황에 옮겨 보기</div>
+      <div class="sub">n과 r을 바꾸면 nʳ이 바로 계산된다.</div>
+      <div class="ctrls">
+        <div class="ctrl"><label>기호 개수 n</label>
+          <div class="stepper-num"><button data-d="tn" data-v="-1">−</button><span class="val" id="tnVal">10</span><button data-d="tn" data-v="1">+</button></div>
+        </div>
+        <div class="ctrl"><label>자리 수 r</label>
+          <div class="stepper-num"><button data-d="tr" data-v="-1">−</button><span class="val" id="trVal">4</span><button data-d="tr" data-v="1">+</button></div>
+        </div>
+      </div>
+      <div class="expr rep" id="transferExpr"></div>
+      <div class="transfer-result" id="transferRes"></div>
+      <div class="presets">
+        <button class="preset" data-n="10" data-r="4">0~9 숫자 4자리 비번</button>
+        <button class="preset" data-n="2" data-r="5">OX 문제 5개</button>
+        <button class="preset" data-n="6" data-r="3">주사위 3번</button>
+        <button class="preset" data-n="26" data-r="2">알파벳 2자리</button>
+      </div>
+    </section>
+
+    <div class="nav">
+      <button class="prev" id="prev" disabled>← 이전</button>
+      <button id="next">다음 →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var SYM = "1234567890ABCDEFGHIJKLMNOP".split("");
+  function symList(n){ return SYM.slice(0,n); }
+  function pow(n,r){ return Math.pow(n,r); }
+  function nPr(n,r){ var x=1; for(var i=0;i<r;i++) x*=(n-i); return x>0?x:0; }
+  function enumRep(n,r){ // all r-length sequences from first n symbols
+    var s=symList(n), out=[""];
+    for(var k=0;k<r;k++){ var nx=[]; for(var a=0;a<out.length;a++) for(var b=0;b<s.length;b++) nx.push(out[a]+s[b]); out=nx; }
+    return out;
+  }
+  function isPermSeq(str){ return new Set(str.split("")).size===str.length; }
+
+  /* ---------- STAGE 0 ---------- */
+  document.getElementById("reveal0").addEventListener("click",function(){
+    var all=enumRep(3,2), g=document.getElementById("grid0"); g.innerHTML="";
+    all.forEach(function(p,i){
+      var c=document.createElement("span"); c.className="chip"; c.textContent=p;
+      c.style.opacity=0; c.style.transform="scale(.7)";
+      g.appendChild(c);
+      setTimeout(function(){ c.style.transition=".25s"; c.style.opacity=1; c.style.transform="none"; }, i*55);
+    });
+    setTimeout(function(){
+      document.getElementById("count0").innerHTML='<div class="count rep">'+all.length+'<span class="label">가지</span></div>';
+    }, all.length*55+200);
+    this.disabled=true; this.style.opacity=.4;
+  });
+
+  /* ---------- STAGE 1 ---------- */
+  (function(){
+    var all=enumRep(3,2);
+    var gr=document.getElementById("grid1rep"), gp=document.getElementById("grid1perm");
+    all.forEach(function(p){
+      var a=document.createElement("span"); a.className="chip"+(isPermSeq(p)?"":" dup"); a.textContent=p; gr.appendChild(a);
+      var b=document.createElement("span"); b.className="chip"+(isPermSeq(p)?"":" dim"); b.textContent=p; gp.appendChild(b);
+    });
+    document.getElementById("cnt1rep").textContent=9;
+    document.getElementById("cnt1perm").textContent=6;
+    document.getElementById("bump1").addEventListener("click",function(){
+      var o=document.getElementById("overflow1"); o.classList.remove("hide");
+      o.innerHTML='<div class="overflow">자리 3개면 중복순열은 3×3×3 = <b>27가지</b>. 다 적기엔 너무 많다 → 규칙이 필요하다.</div>';
+      this.disabled=true; this.style.opacity=.4;
+    });
+  })();
+
+  /* ---------- STAGE 2 ---------- */
+  var n=3, r=3;
+  function clamp(v,lo,hi){ return Math.max(lo,Math.min(hi,v)); }
+  function buildSlots(el, vals, cls){
+    el.innerHTML="";
+    vals.forEach(function(v,i){
+      var d=document.createElement("div"); d.className="slot "+cls;
+      d.innerHTML='<div class="cap">'+(i+1)+'번째 자리</div><div class="big">'+v+'</div>';
+      d.style.opacity=0; d.style.transform="translateY(8px)"; el.appendChild(d);
+      setTimeout(function(){ d.style.transition=".22s"; d.style.opacity=1; d.style.transform="none"; }, i*110);
+    });
+  }
+  function renderStage2(){
+    document.getElementById("nVal").textContent=n;
+    document.getElementById("rVal").textContent=r;
+    var repVals=[], permVals=[];
+    for(var i=0;i<r;i++){ repVals.push(n); permVals.push(Math.max(n-i,0)); }
+    buildSlots(document.getElementById("slotsRep"), repVals, "rep");
+    buildSlots(document.getElementById("slotsPerm"), permVals, "perm");
+    var rp=pow(n,r), pm=nPr(n,r);
+    document.getElementById("exprRep").innerHTML =
+      repVals.join(" × ")+' = <span class="res">'+rp.toLocaleString()+'</span> &nbsp;(= '+n+'<sup>'+r+'</sup>)';
+    document.getElementById("exprPerm").innerHTML =
+      permVals.join(" × ")+' = <span class="res">'+(pm>0?pm.toLocaleString():0)+'</span>'+(n<r?'  (자리가 기호보다 많아 불가)':'');
+    var disc=document.getElementById("discover2");
+    setTimeout(function(){ disc.classList.add("show"); }, r*110+250);
+  }
+
+  /* ---------- STAGE 3 (전이) ---------- */
+  var tn=10, tr=4;
+  function renderTransfer(){
+    document.getElementById("tnVal").textContent=tn;
+    document.getElementById("trVal").textContent=tr;
+    var res=pow(tn,tr);
+    document.getElementById("transferExpr").innerHTML = tn+" × ".repeat ? Array(tr).fill(tn).join(" × ") : "";
+    document.getElementById("transferExpr").innerHTML = Array(tr).fill(tn).join(" × ")+' = '+tn+'<sup>'+tr+'</sup>';
+    document.getElementById("transferRes").textContent = res.toLocaleString()+" 가지";
+  }
+
+  /* ---------- 스텝 컨트롤 ---------- */
+  document.querySelectorAll('.stepper-num button').forEach(function(b){
+    b.addEventListener("click",function(){
+      var d=this.dataset.d, v=parseInt(this.dataset.v,10);
+      if(d==="n"){ n=clamp(n+v,2,8); renderStage2(); }
+      if(d==="r"){ r=clamp(r+v,1,6); document.getElementById("discover2").classList.remove("show"); renderStage2(); }
+      if(d==="tn"){ tn=clamp(tn+v,2,30); renderTransfer(); }
+      if(d==="tr"){ tr=clamp(tr+v,1,6); renderTransfer(); }
+    });
+  });
+  document.querySelectorAll('.preset').forEach(function(p){
+    p.addEventListener("click",function(){ tn=parseInt(this.dataset.n,10); tr=parseInt(this.dataset.r,10); renderTransfer(); });
+  });
+
+  /* ---------- 스테이지 전환 ---------- */
+  var cur=0, total=4;
+  function show(s){
+    cur=s;
+    document.querySelectorAll('[data-stage]').forEach(function(sec){ sec.classList.toggle("hide", +sec.dataset.stage!==s); });
+    document.querySelectorAll('.step').forEach(function(st){ st.setAttribute("aria-selected", +st.dataset.s===s); });
+    document.getElementById("prev").disabled = s===0;
+    document.getElementById("next").disabled = s===total-1;
+    document.getElementById("next").textContent = s===total-1 ? "끝" : "다음 →";
+    if(s===2) renderStage2();
+    if(s===3) renderTransfer();
+  }
+  document.getElementById("next").addEventListener("click",function(){ if(cur<total-1) show(cur+1); });
+  document.getElementById("prev").addEventListener("click",function(){ if(cur>0) show(cur-1); });
+  document.querySelectorAll('.step').forEach(function(st){ st.addEventListener("click",function(){ show(+this.dataset.s); }); });
+
+  show(0);
+})();
+</script>
+</body>
+</html>
